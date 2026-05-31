@@ -170,7 +170,11 @@ impl ReputationState {
     /// Get sorted leaderboard (highest score first).
     pub fn leaderboard(&self) -> Vec<&ReputationScore> {
         let mut scores: Vec<&ReputationScore> = self.peers.values().map(|s| &s.score).collect();
-        scores.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        scores.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         scores
     }
 
@@ -266,8 +270,20 @@ mod tests {
     fn test_contribution_increases_score() {
         let mut state = ReputationState::new();
         state.apply_events(&[
-            make_event("peer1", EventKind::Contribution { hours: 10.0, uptime_pct: 99.0 }),
-            make_event("peer1", EventKind::Contribution { hours: 5.0, uptime_pct: 95.0 }),
+            make_event(
+                "peer1",
+                EventKind::Contribution {
+                    hours: 10.0,
+                    uptime_pct: 99.0,
+                },
+            ),
+            make_event(
+                "peer1",
+                EventKind::Contribution {
+                    hours: 5.0,
+                    uptime_pct: 95.0,
+                },
+            ),
         ]);
         state.recompute_score("peer1");
         let score = state.get_score("peer1").unwrap();
@@ -280,7 +296,13 @@ mod tests {
     fn test_consumption_reduces_net_contribution() {
         let mut state = ReputationState::new();
         state.apply_events(&[
-            make_event("peer1", EventKind::Contribution { hours: 20.0, uptime_pct: 99.0 }),
+            make_event(
+                "peer1",
+                EventKind::Contribution {
+                    hours: 20.0,
+                    uptime_pct: 99.0,
+                },
+            ),
             make_event("peer1", EventKind::Consumption { hours: 5.0 }),
         ]);
         state.recompute_score("peer1");
@@ -292,9 +314,27 @@ mod tests {
     fn test_leaderboard_ordering() {
         let mut state = ReputationState::new();
         state.apply_events(&[
-            make_event("alice", EventKind::Contribution { hours: 50.0, uptime_pct: 99.0 }),
-            make_event("bob", EventKind::Contribution { hours: 10.0, uptime_pct: 50.0 }),
-            make_event("carol", EventKind::Contribution { hours: 30.0, uptime_pct: 90.0 }),
+            make_event(
+                "alice",
+                EventKind::Contribution {
+                    hours: 50.0,
+                    uptime_pct: 99.0,
+                },
+            ),
+            make_event(
+                "bob",
+                EventKind::Contribution {
+                    hours: 10.0,
+                    uptime_pct: 50.0,
+                },
+            ),
+            make_event(
+                "carol",
+                EventKind::Contribution {
+                    hours: 30.0,
+                    uptime_pct: 90.0,
+                },
+            ),
         ]);
         state.recompute_all();
         let board = state.leaderboard();
@@ -306,15 +346,23 @@ mod tests {
     #[test]
     fn test_crdt_merge() {
         let mut state_a = ReputationState::new();
-        state_a.apply_events(&[
-            make_event("peer1", EventKind::Contribution { hours: 10.0, uptime_pct: 99.0 }),
-        ]);
+        state_a.apply_events(&[make_event(
+            "peer1",
+            EventKind::Contribution {
+                hours: 10.0,
+                uptime_pct: 99.0,
+            },
+        )]);
         state_a.recompute_all();
 
         let mut state_b = ReputationState::new();
-        state_b.apply_events(&[
-            make_event("peer2", EventKind::Contribution { hours: 5.0, uptime_pct: 80.0 }),
-        ]);
+        state_b.apply_events(&[make_event(
+            "peer2",
+            EventKind::Contribution {
+                hours: 5.0,
+                uptime_pct: 80.0,
+            },
+        )]);
         state_b.recompute_all();
 
         state_a.merge(&state_b);
@@ -327,7 +375,13 @@ mod tests {
     fn test_bonus_adds_to_score() {
         let mut state = ReputationState::new();
         state.apply_events(&[
-            make_event("peer1", EventKind::Contribution { hours: 10.0, uptime_pct: 99.0 }),
+            make_event(
+                "peer1",
+                EventKind::Contribution {
+                    hours: 10.0,
+                    uptime_pct: 99.0,
+                },
+            ),
             make_event("peer1", EventKind::BonusContent { amount: 50.0 }),
         ]);
         state.recompute_score("peer1");
@@ -342,9 +396,18 @@ mod tests {
         let old_event = ReputationEvent {
             peer_id: "peer1".to_string(),
             timestamp: DateTime::from_timestamp(1000, 0).unwrap(),
-            kind: EventKind::Contribution { hours: 1.0, uptime_pct: 10.0 },
+            kind: EventKind::Contribution {
+                hours: 1.0,
+                uptime_pct: 10.0,
+            },
         };
-        let new_event = make_event("peer1", EventKind::Contribution { hours: 100.0, uptime_pct: 99.0 });
+        let new_event = make_event(
+            "peer1",
+            EventKind::Contribution {
+                hours: 100.0,
+                uptime_pct: 99.0,
+            },
+        );
 
         state.apply_event(&new_event);
         state.apply_event(&old_event); // should be ignored
@@ -359,7 +422,10 @@ mod tests {
         for i in 0..5 {
             state.apply_events(&[make_event(
                 &format!("peer{i}"),
-                EventKind::Contribution { hours: (i as f64 + 1.0) * 10.0, uptime_pct: 99.0 },
+                EventKind::Contribution {
+                    hours: (i as f64 + 1.0) * 10.0,
+                    uptime_pct: 99.0,
+                },
             )]);
         }
         state.recompute_all();
@@ -414,7 +480,13 @@ mod tests {
     fn test_consumption_exceeds_contribution() {
         let mut state = ReputationState::new();
         state.apply_events(&[
-            make_event("peer1", EventKind::Contribution { hours: 5.0, uptime_pct: 99.0 }),
+            make_event(
+                "peer1",
+                EventKind::Contribution {
+                    hours: 5.0,
+                    uptime_pct: 99.0,
+                },
+            ),
             make_event("peer1", EventKind::Consumption { hours: 10.0 }),
         ]);
         state.recompute_score("peer1");
@@ -429,12 +501,17 @@ mod tests {
     #[test]
     fn test_uptime_update_overwrites() {
         let mut state = ReputationState::new();
-        state.apply_events(&[
-            make_event("peer1", EventKind::Contribution { hours: 10.0, uptime_pct: 50.0 }),
-        ]);
-        state.apply_events(&[
-            make_event("peer1", EventKind::UptimeUpdate { uptime_pct: 99.0 }),
-        ]);
+        state.apply_events(&[make_event(
+            "peer1",
+            EventKind::Contribution {
+                hours: 10.0,
+                uptime_pct: 50.0,
+            },
+        )]);
+        state.apply_events(&[make_event(
+            "peer1",
+            EventKind::UptimeUpdate { uptime_pct: 99.0 },
+        )]);
         state.recompute_score("peer1");
         let score = state.get_score("peer1").unwrap();
         assert!((score.uptime_pct - 99.0).abs() < 0.001);
@@ -454,13 +531,22 @@ mod tests {
         let old_event = ReputationEvent {
             peer_id: "peer1".to_string(),
             timestamp: DateTime::from_timestamp(1000, 0).unwrap(),
-            kind: EventKind::Contribution { hours: 1.0, uptime_pct: 10.0 },
+            kind: EventKind::Contribution {
+                hours: 1.0,
+                uptime_pct: 10.0,
+            },
         };
         state_old.apply_event(&old_event);
         state_old.recompute_all();
 
         let mut state_new = ReputationState::new();
-        state_new.apply_events(&[make_event("peer1", EventKind::Contribution { hours: 99.0, uptime_pct: 99.0 })]);
+        state_new.apply_events(&[make_event(
+            "peer1",
+            EventKind::Contribution {
+                hours: 99.0,
+                uptime_pct: 99.0,
+            },
+        )]);
         state_new.recompute_all();
 
         // Old should have its data, new should have newer data

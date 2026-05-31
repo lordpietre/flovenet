@@ -30,10 +30,7 @@ const BLOCK_PROTOCOL: StreamProtocol = StreamProtocol::new("/flovenet/block/1.0.
 /// Create a new cache behaviour for block exchange.
 pub fn create_cache_behaviour() -> CacheBehaviour {
     request_response::json::Behaviour::new(
-        [(
-            BLOCK_PROTOCOL,
-            ProtocolSupport::Full,
-        )],
+        [(BLOCK_PROTOCOL, ProtocolSupport::Full)],
         request_response::Config::default(),
     )
 }
@@ -167,7 +164,9 @@ mod tests {
     #[tokio::test]
     async fn test_handle_request_not_found() {
         let cache = BlockCache::new(100);
-        let req = BlockRequest { cid: "nonexistent".into() };
+        let req = BlockRequest {
+            cid: "nonexistent".into(),
+        };
         let resp = cache.handle_request(&req).await;
         assert!(!resp.found);
         assert!(resp.data.is_empty());

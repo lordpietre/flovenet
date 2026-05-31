@@ -40,8 +40,7 @@ impl Runner for WasmtimeRunner {
 
         let mut config = Config::new();
         config.consume_fuel(true);
-        let engine =
-            Engine::new(&config).map_err(|e| RuntimeError::Execution(e.to_string()))?;
+        let engine = Engine::new(&config).map_err(|e| RuntimeError::Execution(e.to_string()))?;
 
         let module = Module::new(&engine, &wasm_bytes)
             .map_err(|e| RuntimeError::Execution(format!("invalid wasm: {e}")))?;
@@ -70,7 +69,8 @@ impl Runner for WasmtimeRunner {
             .map_err(|e| RuntimeError::Execution(format!("entrypoint not found: {e}")))?;
 
         let blocking_task = tokio::task::spawn_blocking(move || {
-            func.call(&mut store, ()).map_err(|e| RuntimeError::Execution(e.to_string()))
+            func.call(&mut store, ())
+                .map_err(|e| RuntimeError::Execution(e.to_string()))
         });
 
         let timeout = std::time::Duration::from_secs(manifest.max_duration_secs);
@@ -101,10 +101,10 @@ impl Runner for WasmtimeRunner {
 #[allow(unused)]
 pub(crate) const MINIMAL_WASM: &[u8] = &[
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, // magic + version
-    0x01, 0x04, 0x01, 0x60, 0x00, 0x00,             // type section
-    0x03, 0x02, 0x01, 0x00,                         // function section
+    0x01, 0x04, 0x01, 0x60, 0x00, 0x00, // type section
+    0x03, 0x02, 0x01, 0x00, // function section
     0x07, 0x0a, 0x01, 0x06, 0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x00, // export "_start"
-    0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b,             // code section
+    0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b, // code section
 ];
 
 fn wasm_cache_dir() -> std::path::PathBuf {
@@ -138,6 +138,7 @@ mod tests {
             args: vec![],
             max_duration_secs: 10,
             slots_required: 1,
+            gpu_vram_gb: None,
         };
         let err = runner.run(manifest).await.unwrap_err();
         match err {
@@ -155,6 +156,7 @@ mod tests {
             args: vec![],
             max_duration_secs: 10,
             slots_required: 1,
+            gpu_vram_gb: None,
         };
         let err = runner.run(manifest).await.unwrap_err();
         match err {
@@ -172,6 +174,7 @@ mod tests {
             args: vec![],
             max_duration_secs: 0,
             slots_required: 1,
+            gpu_vram_gb: None,
         };
         let err = runner.run(manifest).await.unwrap_err();
         assert!(err.to_string().contains("out of range"));
@@ -186,6 +189,7 @@ mod tests {
             args: vec![],
             max_duration_secs: 3601,
             slots_required: 1,
+            gpu_vram_gb: None,
         };
         let err = runner.run(manifest).await.unwrap_err();
         assert!(err.to_string().contains("out of range"));
@@ -200,6 +204,7 @@ mod tests {
             args: vec![],
             max_duration_secs: 10,
             slots_required: 1,
+            gpu_vram_gb: None,
         };
         let err = runner.run(manifest).await.unwrap_err();
         assert!(err.to_string().contains("cannot load wasm image"));
@@ -212,7 +217,9 @@ mod tests {
         let cid = "minimal-test-wasm";
         let cache_dir = wasm_cache_dir();
         tokio::fs::create_dir_all(&cache_dir).await.unwrap();
-        tokio::fs::write(cache_dir.join(cid), MINIMAL_WASM).await.unwrap();
+        tokio::fs::write(cache_dir.join(cid), MINIMAL_WASM)
+            .await
+            .unwrap();
 
         let runner = WasmtimeRunner::new();
         let manifest = Manifest {
@@ -221,6 +228,7 @@ mod tests {
             args: vec![],
             max_duration_secs: 30,
             slots_required: 1,
+            gpu_vram_gb: None,
         };
 
         let result = runner.run(manifest).await.unwrap();
@@ -233,7 +241,9 @@ mod tests {
         let cid = "minimal-test-wasm-timeout";
         let cache_dir = wasm_cache_dir();
         tokio::fs::create_dir_all(&cache_dir).await.unwrap();
-        tokio::fs::write(cache_dir.join(cid), MINIMAL_WASM).await.unwrap();
+        tokio::fs::write(cache_dir.join(cid), MINIMAL_WASM)
+            .await
+            .unwrap();
 
         let runner = WasmtimeRunner::new();
         let manifest = Manifest {
@@ -244,6 +254,7 @@ mod tests {
             // finishes instantly, so this should still succeed
             max_duration_secs: 1,
             slots_required: 1,
+            gpu_vram_gb: None,
         };
 
         let result = runner.run(manifest).await.unwrap();
@@ -255,7 +266,9 @@ mod tests {
         let cid = "invalid-wasm-test";
         let cache_dir = wasm_cache_dir();
         tokio::fs::create_dir_all(&cache_dir).await.unwrap();
-        tokio::fs::write(cache_dir.join(cid), b"not a valid wasm binary").await.unwrap();
+        tokio::fs::write(cache_dir.join(cid), b"not a valid wasm binary")
+            .await
+            .unwrap();
 
         let runner = WasmtimeRunner::new();
         let manifest = Manifest {
@@ -264,6 +277,7 @@ mod tests {
             args: vec![],
             max_duration_secs: 10,
             slots_required: 1,
+            gpu_vram_gb: None,
         };
 
         let err = runner.run(manifest).await.unwrap_err();

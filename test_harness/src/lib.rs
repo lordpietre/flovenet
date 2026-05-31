@@ -19,7 +19,12 @@ pub struct TestCheck {
 }
 
 impl TestCheck {
-    pub fn new(name: &str, passed: bool, expected: impl Into<String>, actual: impl Into<String>) -> Self {
+    pub fn new(
+        name: &str,
+        passed: bool,
+        expected: impl Into<String>,
+        actual: impl Into<String>,
+    ) -> Self {
         Self {
             name: name.into(),
             passed,
@@ -55,7 +60,11 @@ impl TestReport {
         let total = scenarios.len();
         let passed = scenarios.iter().filter(|s| s.passed).count();
         let total_checks: usize = scenarios.iter().map(|s| s.checks.len()).sum();
-        let passed_checks: usize = scenarios.iter().flat_map(|s| s.checks.iter()).filter(|c| c.passed).count();
+        let passed_checks: usize = scenarios
+            .iter()
+            .flat_map(|s| s.checks.iter())
+            .filter(|c| c.passed)
+            .count();
         Self {
             timestamp: Utc::now().to_rfc3339(),
             total_scenarios: total,
@@ -73,7 +82,11 @@ impl TestReport {
     }
 
     pub fn summary(&self) -> String {
-        let status = if self.failed_scenarios == 0 { "✅ ALL PASSED" } else { "❌ SOME FAILED" };
+        let status = if self.failed_scenarios == 0 {
+            "✅ ALL PASSED"
+        } else {
+            "❌ SOME FAILED"
+        };
         format!(
             "{status}\n\
              ─────────────────────────────────────\n\
@@ -104,11 +117,12 @@ impl TestNode {
         let key = identity::Keypair::generate_ed25519();
         let peer_id = PeerId::from(key.public());
 
-        let transport = libp2p::tcp::tokio::Transport::new(libp2p::tcp::Config::new().nodelay(true))
-            .upgrade(libp2p::core::upgrade::Version::V1Lazy)
-            .authenticate(libp2p::noise::Config::new(&key).unwrap())
-            .multiplex(libp2p::yamux::Config::default())
-            .boxed();
+        let transport =
+            libp2p::tcp::tokio::Transport::new(libp2p::tcp::Config::new().nodelay(true))
+                .upgrade(libp2p::core::upgrade::Version::V1Lazy)
+                .authenticate(libp2p::noise::Config::new(&key).unwrap())
+                .multiplex(libp2p::yamux::Config::default())
+                .boxed();
 
         let msg_id_fn = |msg: &gossipsub::Message| {
             let data = &msg.data[..msg.data.len().min(64)];
@@ -123,8 +137,7 @@ impl TestNode {
             .build()
             .unwrap();
 
-        let behaviour =
-            gossipsub::Behaviour::new(MessageAuthenticity::Anonymous, config).unwrap();
+        let behaviour = gossipsub::Behaviour::new(MessageAuthenticity::Anonymous, config).unwrap();
 
         let mut swarm = Swarm::new(
             transport,
@@ -136,7 +149,11 @@ impl TestNode {
         let addr: Multiaddr = format!("/ip4/127.0.0.1/tcp/{port}").parse().unwrap();
         swarm.listen_on(addr.clone()).unwrap();
 
-        TestNode { peer_id, swarm, listen_addr: addr }
+        TestNode {
+            peer_id,
+            swarm,
+            listen_addr: addr,
+        }
     }
 
     pub fn subscribe(&mut self, topic: &gossipsub::IdentTopic) {
@@ -144,7 +161,10 @@ impl TestNode {
     }
 
     pub fn publish(&mut self, topic: &gossipsub::IdentTopic, data: &[u8]) {
-        self.swarm.behaviour_mut().publish(topic.clone(), data).expect("publish should succeed");
+        self.swarm
+            .behaviour_mut()
+            .publish(topic.clone(), data)
+            .expect("publish should succeed");
     }
 
     pub fn peer_id_str(&self) -> String {
@@ -168,7 +188,11 @@ fn xxh3_64(data: &[u8]) -> u64 {
 // ── Helper: poll a swarm for N ticks, processing events ─────
 /// Poll a swarm repeatedly, calling `on_event` for each event.
 /// Returns when `on_event` returns `Some(result)` or ticks expire.
-pub async fn poll_swarm<F, R>(swarm: &mut Swarm<gossipsub::Behaviour>, ticks: u32, mut on_event: F) -> Option<R>
+pub async fn poll_swarm<F, R>(
+    swarm: &mut Swarm<gossipsub::Behaviour>,
+    ticks: u32,
+    mut on_event: F,
+) -> Option<R>
 where
     F: FnMut(SwarmEvent<gossipsub::Event>) -> Option<R>,
 {
@@ -225,9 +249,17 @@ pub struct TestOrchestrator {
     pub nodes: Arc<Mutex<Vec<TestNode>>>,
 }
 
+impl Default for TestOrchestrator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestOrchestrator {
     pub fn new() -> Self {
-        Self { nodes: Arc::new(Mutex::new(Vec::new())) }
+        Self {
+            nodes: Arc::new(Mutex::new(Vec::new())),
+        }
     }
 
     pub async fn add_node(&self, node: TestNode) {
@@ -250,8 +282,12 @@ impl TestOrchestrator {
         // Dial
         for i in 0..n {
             for j in 0..n {
-                if i == j { continue; }
-                let target = nodes[j].listen_addr.clone()
+                if i == j {
+                    continue;
+                }
+                let target = nodes[j]
+                    .listen_addr
+                    .clone()
                     .with(Protocol::P2p(nodes[j].peer_id));
                 let _ = nodes[i].swarm.dial(target);
             }
@@ -262,7 +298,10 @@ impl TestOrchestrator {
         tokio::time::sleep(Duration::from_millis(1500)).await;
 
         checks.push(TestCheck::new(
-            "mesh_dialed", true, &format!("{n} nodes"), &format!("{n} nodes dialed"),
+            "mesh_dialed",
+            true,
+            format!("{n} nodes"),
+            format!("{n} nodes dialed"),
         ));
         checks
     }

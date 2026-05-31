@@ -20,8 +20,8 @@ impl IpfsBackend {
 }
 
 fn parse_add_response(body: &[u8]) -> Result<String> {
-    let value: HashMap<String, serde_json::Value> = serde_json::from_slice(body)
-        .map_err(|e| StorageError::Backend(e.to_string()))?;
+    let value: HashMap<String, serde_json::Value> =
+        serde_json::from_slice(body).map_err(|e| StorageError::Backend(e.to_string()))?;
     value
         .get("Hash")
         .and_then(|v| v.as_str())
@@ -30,8 +30,8 @@ fn parse_add_response(body: &[u8]) -> Result<String> {
 }
 
 fn parse_pin_ls_response(body: &[u8]) -> Result<Vec<PinnedItem>> {
-    let value: HashMap<String, serde_json::Value> = serde_json::from_slice(body)
-        .map_err(|e| StorageError::Backend(e.to_string()))?;
+    let value: HashMap<String, serde_json::Value> =
+        serde_json::from_slice(body).map_err(|e| StorageError::Backend(e.to_string()))?;
     let keys = value
         .get("Keys")
         .and_then(|v| v.as_object())
@@ -70,7 +70,11 @@ impl StorageBackend for IpfsBackend {
                 )));
             }
 
-            parse_add_response(&resp.bytes().map_err(|e| StorageError::Backend(e.to_string()))?)
+            parse_add_response(
+                &resp
+                    .bytes()
+                    .map_err(|e| StorageError::Backend(e.to_string()))?,
+            )
         })
         .await
         .map_err(|e| StorageError::Backend(e.to_string()))??;

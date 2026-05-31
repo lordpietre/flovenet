@@ -28,11 +28,7 @@ pub struct Profile {
 }
 
 impl Profile {
-    pub fn new(
-        peer_id: PeerId,
-        display_name: String,
-        public_key: Vec<u8>,
-    ) -> Self {
+    pub fn new(peer_id: PeerId, display_name: String, public_key: Vec<u8>) -> Self {
         Profile {
             peer_id,
             display_name,

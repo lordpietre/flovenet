@@ -11,6 +11,7 @@ pub struct Manifest {
     pub args: Vec<String>,
     pub max_duration_secs: u64,
     pub slots_required: u32,
+    pub gpu_vram_gb: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,6 +48,7 @@ mod tests {
             args: vec!["--verbose".into()],
             max_duration_secs: 30,
             slots_required: 2,
+            gpu_vram_gb: None,
         };
         let json = serde_json::to_string(&m).unwrap();
         let decoded: Manifest = serde_json::from_str(&json).unwrap();
@@ -55,6 +57,21 @@ mod tests {
         assert_eq!(decoded.args, vec!["--verbose".to_string()]);
         assert_eq!(decoded.max_duration_secs, 30);
         assert_eq!(decoded.slots_required, 2);
+    }
+
+    #[test]
+    fn test_manifest_with_gpu() {
+        let m = Manifest {
+            image_cid: "gpu.wasm".into(),
+            entrypoint: "_start".into(),
+            args: vec![],
+            max_duration_secs: 60,
+            slots_required: 4,
+            gpu_vram_gb: Some(8.0),
+        };
+        let json = serde_json::to_string(&m).unwrap();
+        let decoded: Manifest = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.gpu_vram_gb, Some(8.0));
     }
 
     #[test]
@@ -85,6 +102,7 @@ mod tests {
             args: vec![],
             max_duration_secs: 3600,
             slots_required: 1,
+            gpu_vram_gb: None,
         };
         assert_eq!(m.max_duration_secs, 3600);
         assert_eq!(m.slots_required, 1);

@@ -2,7 +2,7 @@ use libp2p::request_response::{self, json, ProtocolSupport};
 use libp2p::StreamProtocol;
 use serde::{Deserialize, Serialize};
 
-pub const JOB_PROTOCOL: &str = "/flovenet/job/1.0.0";
+pub const JOB_PROTOCOL: &str = "/flovenet/job/1.1.0";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobOffer {
@@ -11,6 +11,8 @@ pub struct JobOffer {
     pub slots_required: u32,
     pub max_duration_secs: u64,
     pub reward: Option<u64>,
+    pub gpu_vram_gb: Option<f64>,
+    pub gpu_required: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,10 +46,29 @@ mod tests {
             slots_required: 2,
             max_duration_secs: 300,
             reward: None,
+            gpu_vram_gb: None,
+            gpu_required: false,
         };
         let json = serde_json::to_string(&offer).unwrap();
         let deserialized: JobOffer = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.job_id, "test-1");
+    }
+
+    #[test]
+    fn test_job_offer_with_gpu() {
+        let offer = JobOffer {
+            job_id: "gpu-job".into(),
+            manifest_cid: "QmGpu123".into(),
+            slots_required: 4,
+            max_duration_secs: 600,
+            reward: Some(100),
+            gpu_vram_gb: Some(8.0),
+            gpu_required: true,
+        };
+        let json = serde_json::to_string(&offer).unwrap();
+        let deserialized: JobOffer = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.gpu_vram_gb, Some(8.0));
+        assert!(deserialized.gpu_required);
     }
 
     #[test]
@@ -65,6 +86,6 @@ mod tests {
 
     #[test]
     fn test_protocol_string() {
-        assert_eq!(JOB_PROTOCOL, "/flovenet/job/1.0.0");
+        assert_eq!(JOB_PROTOCOL, "/flovenet/job/1.1.0");
     }
 }

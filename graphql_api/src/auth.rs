@@ -1,6 +1,6 @@
 use argon2::Argon2;
 use chrono::{Duration, Utc};
-use jsonwebtoken::{Header, Validation, decode, encode};
+use jsonwebtoken::{decode, encode, Header, Validation};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -125,7 +125,10 @@ mod tests {
     #[tokio::test]
     async fn test_register_and_login() {
         let auth = make_auth();
-        let token = auth.register("alice@test.com", "pass123", "Alice", vec![1, 2, 3]).await.unwrap();
+        let token = auth
+            .register("alice@test.com", "pass123", "Alice", vec![1, 2, 3])
+            .await
+            .unwrap();
         assert!(!token.is_empty());
 
         let (token2, user) = auth.login("alice@test.com", "pass123").await.unwrap();
@@ -137,15 +140,22 @@ mod tests {
     #[tokio::test]
     async fn test_register_duplicate_email() {
         let auth = make_auth();
-        auth.register("dup@test.com", "pass1", "Dup", vec![]).await.unwrap();
-        let err = auth.register("dup@test.com", "pass2", "Dup2", vec![]).await.unwrap_err();
+        auth.register("dup@test.com", "pass1", "Dup", vec![])
+            .await
+            .unwrap();
+        let err = auth
+            .register("dup@test.com", "pass2", "Dup2", vec![])
+            .await
+            .unwrap_err();
         assert_eq!(err, "email already registered");
     }
 
     #[tokio::test]
     async fn test_login_wrong_password() {
         let auth = make_auth();
-        auth.register("bob@test.com", "correct", "Bob", vec![4, 5, 6]).await.unwrap();
+        auth.register("bob@test.com", "correct", "Bob", vec![4, 5, 6])
+            .await
+            .unwrap();
         let err = auth.login("bob@test.com", "wrong").await.unwrap_err();
         assert_eq!(err, "invalid email or password");
     }
@@ -160,7 +170,10 @@ mod tests {
     #[tokio::test]
     async fn test_validate_token() {
         let auth = make_auth();
-        let token = auth.register("val@test.com", "pwd", "Val", vec![7, 8, 9]).await.unwrap();
+        let token = auth
+            .register("val@test.com", "pwd", "Val", vec![7, 8, 9])
+            .await
+            .unwrap();
         let claims = auth.validate_token(&token).await.unwrap();
         assert_eq!(claims.email, "val@test.com");
         assert!(claims.exp > claims.iat);
@@ -176,8 +189,14 @@ mod tests {
     #[tokio::test]
     async fn test_register_generates_different_tokens() {
         let auth = make_auth();
-        let t1 = auth.register("a@test.com", "pwd", "A", vec![]).await.unwrap();
-        let t2 = auth.register("b@test.com", "pwd", "B", vec![]).await.unwrap();
+        let t1 = auth
+            .register("a@test.com", "pwd", "A", vec![])
+            .await
+            .unwrap();
+        let t2 = auth
+            .register("b@test.com", "pwd", "B", vec![])
+            .await
+            .unwrap();
         assert_ne!(t1, t2);
     }
 }

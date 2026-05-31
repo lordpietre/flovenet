@@ -62,7 +62,10 @@ impl StorageBackend for HybridBackend {
                 Ok(data) => {
                     if i > 0 {
                         // Promote to faster tiers on successful read (eventual migration)
-                        let opts = StorageOpts { pin: true, ttl: None };
+                        let opts = StorageOpts {
+                            pin: true,
+                            ttl: None,
+                        };
                         for j in 0..i {
                             if let Err(e) = self.tiers[j].add(&data, opts.clone()).await {
                                 warn!(from = i, to = j, %cid, error = %e, "hybrid promote failed");
@@ -88,9 +91,9 @@ impl StorageBackend for HybridBackend {
                 last_err = Some(e);
             }
         }
-        last_err.map(|_| ()).ok_or_else(|| {
-            StorageError::Backend("all tiers failed on pin".into())
-        })
+        last_err
+            .map(|_| ())
+            .ok_or_else(|| StorageError::Backend("all tiers failed on pin".into()))
     }
 
     async fn unpin(&self, cid: &CID) -> Result<(), StorageError> {
@@ -101,9 +104,9 @@ impl StorageBackend for HybridBackend {
                 last_err = Some(e);
             }
         }
-        last_err.map(|_| ()).ok_or_else(|| {
-            StorageError::Backend("all tiers failed on unpin".into())
-        })
+        last_err
+            .map(|_| ())
+            .ok_or_else(|| StorageError::Backend("all tiers failed on unpin".into()))
     }
 
     async fn ls_pins(&self) -> Result<Vec<PinnedItem>, StorageError> {
@@ -127,9 +130,9 @@ impl StorageBackend for HybridBackend {
                 last_err = Some(e);
             }
         }
-        last_err.map(|_| ()).ok_or_else(|| {
-            StorageError::Backend("all tiers failed on delete".into())
-        })
+        last_err
+            .map(|_| ())
+            .ok_or_else(|| StorageError::Backend("all tiers failed on delete".into()))
     }
 }
 
@@ -143,13 +146,13 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let local1 = LocalBackend::new(dir.path().join("tier1"));
         let local2 = LocalBackend::new(dir.path().join("tier2"));
-        let hybrid = HybridBackend::new(vec![
-            Box::new(local1),
-            Box::new(local2),
-        ]);
+        let hybrid = HybridBackend::new(vec![Box::new(local1), Box::new(local2)]);
 
         let data = b"hello hybrid world";
-        let opts = StorageOpts { pin: false, ttl: None };
+        let opts = StorageOpts {
+            pin: false,
+            ttl: None,
+        };
         let cid = hybrid.add(data, opts).await.unwrap();
         let retrieved = hybrid.get(&cid).await.unwrap();
         assert_eq!(retrieved, data);
@@ -163,13 +166,13 @@ mod tests {
 
         // Store only in fallback
         let data = b"fallback data";
-        let opts = StorageOpts { pin: false, ttl: None };
+        let opts = StorageOpts {
+            pin: false,
+            ttl: None,
+        };
         let cid = fallback.add(data, opts.clone()).await.unwrap();
 
-        let hybrid = HybridBackend::new(vec![
-            Box::new(fast),
-            Box::new(fallback),
-        ]);
+        let hybrid = HybridBackend::new(vec![Box::new(fast), Box::new(fallback)]);
 
         // Should find it via fallback tier
         let retrieved = hybrid.get(&cid).await.unwrap();

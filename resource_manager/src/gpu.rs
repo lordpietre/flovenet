@@ -79,6 +79,95 @@ impl GpuSlot {
     }
 }
 
+/// Manages GPU slot allocation and lifecycle.
+pub struct GpuSlotManager {
+    slots: Vec<GpuSlot>,
+}
+
+impl GpuSlotManager {
+    /// Create a new manager from detected GPU VRAM.
+    pub fn new(total_vram_gb: f64, model: &str) -> Self {
+        Self {
+            slots: GpuSlot::create_slots(total_vram_gb, model),
+        }
+    }
+
+    /// Create a manager from existing slots (for testing or restoration).
+    pub fn from_slots(slots: Vec<GpuSlot>) -> Self {
+        Self { slots }
+    }
+
+    /// Get total number of slots.
+    pub fn total_slots(&self) -> usize {
+        self.slots.len()
+    }
+
+    /// Get number of available slots.
+    pub fn available_slots(&self) -> usize {
+        self.slots.iter().filter(|s| s.available).count()
+    }
+
+    /// Get total VRAM across all slots.
+    pub fn total_vram_gb(&self) -> f64 {
+        self.slots.iter().map(|s| s.vram_gb).sum()
+    }
+
+    /// Get available VRAM (sum of available slots).
+    pub fn available_vram_gb(&self) -> f64 {
+        self.slots
+            .iter()
+            .filter(|s| s.available)
+            .map(|s| s.vram_gb)
+            .sum()
+    }
+
+    /// Allocate slots for a job requiring `required_gb` VRAM.
+    /// Returns the slot IDs allocated, or an error if insufficient slots.
+    pub fn allocate(&mut self, required_gb: f64) -> Result<Vec<u32>, String> {
+        let slots_needed = GpuSlot::slots_needed(required_gb) as usize;
+        let available: Vec<usize> = self
+            .slots
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| s.available)
+            .map(|(i, _)| i)
+            .collect();
+
+        if available.len() < slots_needed {
+            return Err(format!(
+                "insufficient GPU slots: need {}, have {} available",
+                slots_needed,
+                available.len()
+            ));
+        }
+
+        let allocated: Vec<u32> = available
+            .iter()
+            .take(slots_needed)
+            .map(|&i| {
+                self.slots[i].available = false;
+                self.slots[i].slot_id
+            })
+            .collect();
+
+        Ok(allocated)
+    }
+
+    /// Release previously allocated slots by their IDs.
+    pub fn release(&mut self, slot_ids: &[u32]) {
+        for &id in slot_ids {
+            if let Some(slot) = self.slots.iter_mut().find(|s| s.slot_id == id) {
+                slot.available = true;
+            }
+        }
+    }
+
+    /// Get a snapshot of all slots.
+    pub fn slots(&self) -> &[GpuSlot] {
+        &self.slots
+    }
+}
+
 /// Detect GPU resources available on this system.
 ///
 /// Detection order:
@@ -142,6 +231,50 @@ fn detect_gpu_platform() -> (Option<f64>, Option<String>) {
         }
     }
 
+    // AMD /sys/class/drm path on Linux
+    let drm_dir = Path::new("/sys/class/drm");
+    if drm_dir.is_dir() {
+        let mut total_vram: f64 = 0.0;
+        let mut model: Option<String> = None;
+
+        if let Ok(entries) = std::fs::read_dir(drm_dir) {
+            for entry in entries.flatten() {
+                let card_path = entry.path();
+                let card_name = card_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+                // Only process card* entries (not card0-DP-1, etc.)
+                if !card_name.starts_with("card") || card_name.contains('-') {
+                    continue;
+                }
+
+                let vram_path = card_path.join("device/mem_info_vram_total");
+                if let Ok(vram_str) = std::fs::read_to_string(&vram_path) {
+                    if let Ok(bytes) = vram_str.trim().parse::<u64>() {
+                        let vram_gb = bytes as f64 / 1024.0 / 1024.0 / 1024.0;
+                        if vram_gb > 0.0 {
+                            total_vram += vram_gb;
+
+                            // Try to get model name
+                            if model.is_none() {
+                                let name_path = card_path.join("device/marketing_name");
+                                if let Ok(name) = std::fs::read_to_string(&name_path) {
+                                    let name = name.trim().to_string();
+                                    if !name.is_empty() {
+                                        model = Some(name);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if total_vram > 0.0 {
+            return (Some((total_vram * 10.0).round() / 10.0), model);
+        }
+    }
+
     (None, None)
 }
 
@@ -149,7 +282,10 @@ fn detect_gpu_platform() -> (Option<f64>, Option<String>) {
 fn detect_gpu_platform() -> (Option<f64>, Option<String>) {
     // Windows GPU detection via nvidia-smi subprocess (lightweight, no NVML binding needed)
     match std::process::Command::new("nvidia-smi")
-        .args(["--query-gpu=memory.total,name", "--format=csv,noheader,nounits"])
+        .args([
+            "--query-gpu=memory.total,name",
+            "--format=csv,noheader,nounits",
+        ])
         .output()
     {
         Ok(output) if output.status.success() => {
@@ -168,7 +304,13 @@ fn detect_gpu_platform() -> (Option<f64>, Option<String>) {
         _ => {
             // Fallback: try WMI (Windows Management Instrumentation)
             match std::process::Command::new("wmic")
-                .args(["path", "Win32_VideoController", "get", "AdapterRAM,Name", "/format:csv"])
+                .args([
+                    "path",
+                    "Win32_VideoController",
+                    "get",
+                    "AdapterRAM,Name",
+                    "/format:csv",
+                ])
                 .output()
             {
                 Ok(output) if output.status.success() => {
@@ -244,5 +386,61 @@ mod tests {
         let (vram, model) = detect_gpu();
         assert!(vram.is_none() || vram.unwrap() > 0.0);
         drop(model);
+    }
+
+    #[test]
+    fn test_gpu_slot_manager_new() {
+        let manager = GpuSlotManager::new(24.0, "RTX 4090");
+        assert_eq!(manager.total_slots(), 3);
+        assert_eq!(manager.available_slots(), 3);
+        assert!((manager.total_vram_gb() - 24.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_gpu_slot_manager_allocate() {
+        let mut manager = GpuSlotManager::new(24.0, "RTX 4090");
+        let slots = manager.allocate(8.0).unwrap();
+        assert_eq!(slots.len(), 1);
+        assert_eq!(manager.available_slots(), 2);
+    }
+
+    #[test]
+    fn test_gpu_slot_manager_allocate_multiple() {
+        let mut manager = GpuSlotManager::new(24.0, "RTX 4090");
+        let _s1 = manager.allocate(8.0).unwrap();
+        let _s2 = manager.allocate(8.0).unwrap();
+        assert_eq!(manager.available_slots(), 1);
+    }
+
+    #[test]
+    fn test_gpu_slot_manager_allocate_fails_when_full() {
+        let mut manager = GpuSlotManager::new(24.0, "RTX 4090");
+        let _s1 = manager.allocate(8.0).unwrap();
+        let _s2 = manager.allocate(8.0).unwrap();
+        let _s3 = manager.allocate(8.0).unwrap();
+        let result = manager.allocate(8.0);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("insufficient"));
+    }
+
+    #[test]
+    fn test_gpu_slot_manager_release() {
+        let mut manager = GpuSlotManager::new(24.0, "RTX 4090");
+        let slots = manager.allocate(8.0).unwrap();
+        assert_eq!(manager.available_slots(), 2);
+        manager.release(&slots);
+        assert_eq!(manager.available_slots(), 3);
+    }
+
+    #[test]
+    fn test_gpu_slot_manager_allocate_release_allocate() {
+        let mut manager = GpuSlotManager::new(24.0, "RTX 4090");
+        let s1 = manager.allocate(24.0).unwrap();
+        assert_eq!(manager.available_slots(), 0);
+        manager.release(&s1);
+        assert_eq!(manager.available_slots(), 3);
+        let s2 = manager.allocate(8.0).unwrap();
+        assert_eq!(s2.len(), 1);
+        assert_eq!(manager.available_slots(), 2);
     }
 }

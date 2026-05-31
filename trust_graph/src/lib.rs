@@ -109,7 +109,10 @@ impl TrustGraph {
 
                 // Collect next-hop intermediaries
                 for edge in self.edges.values() {
-                    if edge.signer == *intermediary && edge.target != target && !visited.contains(&edge.target) {
+                    if edge.signer == *intermediary
+                        && edge.target != target
+                        && !visited.contains(&edge.target)
+                    {
                         next_hop.push(edge.target.clone());
                     }
                 }
@@ -323,12 +326,18 @@ mod tests {
             reputation_engine::ReputationEvent {
                 peer_id: "bob".into(),
                 timestamp: Utc::now(),
-                kind: reputation_engine::EventKind::Contribution { hours: 50.0, uptime_pct: 99.0 },
+                kind: reputation_engine::EventKind::Contribution {
+                    hours: 50.0,
+                    uptime_pct: 99.0,
+                },
             },
             reputation_engine::ReputationEvent {
                 peer_id: "carol".into(),
                 timestamp: Utc::now(),
-                kind: reputation_engine::EventKind::Contribution { hours: 10.0, uptime_pct: 50.0 },
+                kind: reputation_engine::EventKind::Contribution {
+                    hours: 10.0,
+                    uptime_pct: 50.0,
+                },
             },
         ]);
         rep.recompute_all();

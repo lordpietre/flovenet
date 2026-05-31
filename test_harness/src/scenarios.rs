@@ -4,7 +4,9 @@ use libp2p::gossipsub;
 use libp2p::swarm::SwarmEvent;
 use tracing::info;
 
-use test_harness::{wait_for_event, Scenario, ScenarioResult, TestCheck, TestNode, TestOrchestrator};
+use test_harness::{
+    wait_for_event, Scenario, ScenarioResult, TestCheck, TestNode, TestOrchestrator,
+};
 
 // ── Scenario 1: P2P Mesh Formation ─────────────────────────
 
@@ -37,8 +39,10 @@ impl Scenario for P2pMeshScenario {
         // Check all nodes exist
         let count = orch.node_count().await;
         checks.push(TestCheck::new(
-            "nodes_created", count == self.node_count,
-            self.node_count.to_string(), count.to_string(),
+            "nodes_created",
+            count == self.node_count,
+            self.node_count.to_string(),
+            count.to_string(),
         ));
 
         let passed = checks.iter().all(|c| c.passed);
@@ -96,11 +100,19 @@ impl Scenario for GossipPropagationScenario {
             &mut nodes[1].swarm,
             |e| matches!(e, SwarmEvent::Behaviour(gossipsub::Event::Message { .. })),
             2000,
-        ).await;
+        )
+        .await;
         drop(nodes);
 
         checks.push(TestCheck::new(
-            "gossip_node1", received1, "message received", if received1 { "received" } else { "not received" },
+            "gossip_node1",
+            received1,
+            "message received",
+            if received1 {
+                "received"
+            } else {
+                "not received"
+            },
         ));
 
         let passed = checks.iter().all(|c| c.passed);

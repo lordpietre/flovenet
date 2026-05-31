@@ -19,13 +19,8 @@ pub struct PlacementDecision {
 
 #[derive(Debug)]
 pub enum MatchResult {
-    Accepted {
-        slots_used: u32,
-        reason: String,
-    },
-    Rejected {
-        reason: String,
-    },
+    Accepted { slots_used: u32, reason: String },
+    Rejected { reason: String },
 }
 
 /// Candidate ranking: score + bonuses for matching decisions.
@@ -107,10 +102,7 @@ impl LocalScheduler {
                 Some(gpu_have) if gpu_have >= gpu_needed => {}
                 _ => {
                     return MatchResult::Rejected {
-                        reason: format!(
-                            "insufficient GPU VRAM: need {:.1}GB",
-                            gpu_needed
-                        ),
+                        reason: format!("insufficient GPU VRAM: need {:.1}GB", gpu_needed),
                     }
                 }
             }
@@ -350,7 +342,8 @@ mod tests {
             available_slots: 3,
         };
 
-        let candidates = scheduler.rank_candidates(&[bob_desc, alice_desc], &req, &NodeRole::Compute);
+        let candidates =
+            scheduler.rank_candidates(&[bob_desc, alice_desc], &req, &NodeRole::Compute);
         assert_eq!(candidates.len(), 2);
         // Alice has higher reputation, should be ranked first
         assert_eq!(candidates[0].peer_id, "alice");
@@ -417,7 +410,10 @@ mod tests {
             disk_gb: 1.0,
             gpu_vram_gb: Some(8.0),
         };
-        assert!(matches!(scheduler.can_accept(&desc, &req, &NodeRole::Compute), MatchResult::Accepted { .. }));
+        assert!(matches!(
+            scheduler.can_accept(&desc, &req, &NodeRole::Compute),
+            MatchResult::Accepted { .. }
+        ));
     }
 
     #[test]
@@ -443,7 +439,9 @@ mod tests {
             gpu_vram_gb: None,
         };
         let desc = test_descriptor();
-        let rank = scheduler.rank_candidate(&desc, &req, &NodeRole::Compute).unwrap();
+        let rank = scheduler
+            .rank_candidate(&desc, &req, &NodeRole::Compute)
+            .unwrap();
         assert!(!rank.resources_ok);
         assert_eq!(rank.composite_rank, 0.0);
     }
@@ -454,7 +452,10 @@ mod tests {
         rep.apply_events(&[reputation_engine::ReputationEvent {
             peer_id: "node1".into(),
             timestamp: chrono::Utc::now(),
-            kind: reputation_engine::EventKind::Contribution { hours: 10.0, uptime_pct: 99.0 },
+            kind: reputation_engine::EventKind::Contribution {
+                hours: 10.0,
+                uptime_pct: 99.0,
+            },
         }]);
         rep.recompute_all();
 
@@ -466,7 +467,10 @@ mod tests {
         rep2.apply_events(&[reputation_engine::ReputationEvent {
             peer_id: "node2".into(),
             timestamp: chrono::Utc::now(),
-            kind: reputation_engine::EventKind::Contribution { hours: 5.0, uptime_pct: 80.0 },
+            kind: reputation_engine::EventKind::Contribution {
+                hours: 5.0,
+                uptime_pct: 80.0,
+            },
         }]);
         rep2.recompute_all();
 
@@ -485,5 +489,66 @@ mod tests {
         let json = serde_json::to_string(&req).unwrap();
         let decoded: SlotRequirement = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded.gpu_vram_gb, Some(16.0));
+    }
+
+    #[test]
+    fn test_gpu_job_end_to_end() {
+        let scheduler = LocalScheduler::new();
+        let mut desc = test_descriptor();
+        desc.resources.gpu_vram_gb = Some(24.0);
+        desc.resources.gpu_model = Some("RTX 4090".into());
+        desc.roles = vec![NodeRole::Ai];
+
+        let req = SlotRequirement {
+            cpu_cores: 2,
+            ram_gb: 4.0,
+            disk_gb: 10.0,
+            gpu_vram_gb: Some(8.0),
+        };
+
+        match scheduler.can_accept(&desc, &req, &NodeRole::Ai) {
+            MatchResult::Accepted { .. } => {}
+            MatchResult::Rejected { reason } => panic!("should accept GPU job: {reason}"),
+        }
+    }
+
+    #[test]
+    fn test_gpu_job_rejected_without_gpu() {
+        let scheduler = LocalScheduler::new();
+        let mut desc = test_descriptor();
+        desc.resources.gpu_vram_gb = None;
+        desc.roles = vec![NodeRole::Ai];
+
+        let req = SlotRequirement {
+            cpu_cores: 2,
+            ram_gb: 4.0,
+            disk_gb: 10.0,
+            gpu_vram_gb: Some(8.0),
+        };
+
+        match scheduler.can_accept(&desc, &req, &NodeRole::Ai) {
+            MatchResult::Accepted { .. } => panic!("should reject GPU job without GPU"),
+            MatchResult::Rejected { reason } => assert!(reason.contains("GPU")),
+        }
+    }
+
+    #[test]
+    fn test_gpu_job_rejected_insufficient_vram() {
+        let scheduler = LocalScheduler::new();
+        let mut desc = test_descriptor();
+        desc.resources.gpu_vram_gb = Some(4.0);
+        desc.roles = vec![NodeRole::Ai];
+
+        let req = SlotRequirement {
+            cpu_cores: 2,
+            ram_gb: 4.0,
+            disk_gb: 10.0,
+            gpu_vram_gb: Some(8.0),
+        };
+
+        match scheduler.can_accept(&desc, &req, &NodeRole::Ai) {
+            MatchResult::Accepted { .. } => panic!("should reject GPU job with insufficient VRAM"),
+            MatchResult::Rejected { reason } => assert!(reason.contains("GPU")),
+        }
     }
 }

@@ -1,6 +1,6 @@
 use crypto::{
-    CryptoError, EncryptedBlob, SignedEnvelope, derive_key_from_password, generate_keypair,
-    generate_salt,
+    derive_key_from_password, generate_keypair, generate_salt, CryptoError, EncryptedBlob,
+    SignedEnvelope,
 };
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
@@ -74,23 +74,22 @@ impl KeyStore {
             public_key: self.verifying_key.to_bytes().to_vec(),
         };
 
-        let json = serde_json::to_string(&data)
-            .map_err(|_| CryptoError::Encryption)?;
-        std::fs::write(path.as_ref(), json)
-            .map_err(|_| CryptoError::Encryption)?;
+        let json = serde_json::to_string(&data).map_err(|_| CryptoError::Encryption)?;
+        std::fs::write(path.as_ref(), json).map_err(|_| CryptoError::Encryption)?;
         Ok(())
     }
 
     pub fn load(path: impl AsRef<Path>, password: &str) -> Result<Self, CryptoError> {
-        let json = std::fs::read_to_string(path.as_ref())
-            .map_err(|_| CryptoError::KeyNotFound)?;
-        let data: KeyStoreData = serde_json::from_str(&json)
-            .map_err(|_| CryptoError::Decryption)?;
+        let json = std::fs::read_to_string(path.as_ref()).map_err(|_| CryptoError::KeyNotFound)?;
+        let data: KeyStoreData =
+            serde_json::from_str(&json).map_err(|_| CryptoError::Decryption)?;
 
         let key = derive_key_from_password(password, &data.salt)?;
         let seed_bytes = data.encrypted_seed.decrypt(&key)?;
 
-        let seed_array: [u8; 32] = seed_bytes.as_slice().try_into()
+        let seed_array: [u8; 32] = seed_bytes
+            .as_slice()
+            .try_into()
             .map_err(|_| CryptoError::InvalidKey)?;
         let signing_key = SigningKey::from_bytes(&seed_array);
         let verifying_key = signing_key.verifying_key();

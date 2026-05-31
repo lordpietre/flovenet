@@ -57,7 +57,12 @@ mod tests {
     fn test_cli_daemon_defaults() {
         let cli = Cli::parse_from(["flovenet", "daemon"]);
         match cli.command {
-            Commands::Daemon { port, api_port, roles, swarm_key } => {
+            Commands::Daemon {
+                port,
+                api_port,
+                roles,
+                swarm_key,
+            } => {
                 assert_eq!(port, 0);
                 assert_eq!(api_port, 9090);
                 assert!(roles.is_empty());
@@ -69,9 +74,25 @@ mod tests {
 
     #[test]
     fn test_cli_daemon_with_args() {
-        let cli = Cli::parse_from(["flovenet", "daemon", "--port", "9091", "--api-port", "9092", "--roles", "compute,storage", "--swarm-key", "key.bin"]);
+        let cli = Cli::parse_from([
+            "flovenet",
+            "daemon",
+            "--port",
+            "9091",
+            "--api-port",
+            "9092",
+            "--roles",
+            "compute,storage",
+            "--swarm-key",
+            "key.bin",
+        ]);
         match cli.command {
-            Commands::Daemon { port, api_port, roles, swarm_key } => {
+            Commands::Daemon {
+                port,
+                api_port,
+                roles,
+                swarm_key,
+            } => {
                 assert_eq!(port, 9091);
                 assert_eq!(api_port, 9092);
                 assert_eq!(roles, "compute,storage");
@@ -131,7 +152,14 @@ mod tests {
 
     #[test]
     fn test_cli_run_with_image() {
-        let cli = Cli::parse_from(["flovenet", "run", "--manifest", "run", "--image", "feed_ranker.wasm"]);
+        let cli = Cli::parse_from([
+            "flovenet",
+            "run",
+            "--manifest",
+            "run",
+            "--image",
+            "feed_ranker.wasm",
+        ]);
         match cli.command {
             Commands::Run { manifest, image } => {
                 assert_eq!(manifest, "run");

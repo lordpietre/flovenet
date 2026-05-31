@@ -71,7 +71,11 @@ impl NodeResources {
         sys.refresh_all();
 
         let cpu_cores = sys.cpus().len() as u32;
-        let cpu_freq = sys.cpus().first().map(|c| c.frequency() as f64).unwrap_or(0.0);
+        let cpu_freq = sys
+            .cpus()
+            .first()
+            .map(|c| c.frequency() as f64)
+            .unwrap_or(0.0);
         let ram_total_gb = sys.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
         let ram_avail_gb = sys.available_memory() as f64 / 1024.0 / 1024.0 / 1024.0;
 
@@ -83,7 +87,10 @@ impl NodeResources {
                 total += d.total_space();
                 avail += d.available_space();
             }
-            (total as f64 / 1024.0 / 1024.0 / 1024.0, avail as f64 / 1024.0 / 1024.0 / 1024.0)
+            (
+                total as f64 / 1024.0 / 1024.0 / 1024.0,
+                avail as f64 / 1024.0 / 1024.0 / 1024.0,
+            )
         };
 
         let uptime = System::uptime();

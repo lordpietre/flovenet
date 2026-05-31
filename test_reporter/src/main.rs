@@ -76,7 +76,11 @@ fn render_terminal(report: &TestReport) -> String {
 
     for s in &report.scenarios {
         let icon = if s.passed { "✅" } else { "❌" };
-        out.push_str(&format!("{icon} {} ({:.1}s)\n", s.name, s.duration_ms as f64 / 1000.0));
+        out.push_str(&format!(
+            "{icon} {} ({:.1}s)\n",
+            s.name,
+            s.duration_ms as f64 / 1000.0
+        ));
         for c in &s.checks {
             let ck = if c.passed { "  ✅" } else { "  ❌" };
             out.push_str(&format!("{ck} {}\n", c.name));
@@ -94,7 +98,11 @@ fn render_terminal(report: &TestReport) -> String {
 }
 
 fn render_markdown(report: &TestReport) -> String {
-    let status = if report.failed_scenarios == 0 { "✅ **ALL PASSED**" } else { "❌ **SOME FAILED**" };
+    let status = if report.failed_scenarios == 0 {
+        "✅ **ALL PASSED**"
+    } else {
+        "❌ **SOME FAILED**"
+    };
     let mut out = format!(
         "# Flovenet Test Report\n\n\
          {status}\n\n\
@@ -106,22 +114,32 @@ fn render_markdown(report: &TestReport) -> String {
          | Checks | {}/{} ({:.0}%) |\n\n",
         report.timestamp,
         report.duration_ms as f64 / 1000.0,
-        report.passed_scenarios, report.total_scenarios,
-        report.passed_checks, report.total_checks,
+        report.passed_scenarios,
+        report.total_scenarios,
+        report.passed_checks,
+        report.total_checks,
         if report.total_checks > 0 {
             report.passed_checks as f64 / report.total_checks as f64 * 100.0
-        } else { 100.0 },
+        } else {
+            100.0
+        },
     );
 
     for s in &report.scenarios {
         let icon = if s.passed { "✅" } else { "❌" };
         out.push_str(&format!("## {} {}\n\n", icon, s.name));
-        out.push_str(&format!("- Duration: {:.1}s\n", s.duration_ms as f64 / 1000.0));
+        out.push_str(&format!(
+            "- Duration: {:.1}s\n",
+            s.duration_ms as f64 / 1000.0
+        ));
         out.push_str("| Check | Status | Expected | Actual |\n");
         out.push_str("|-------|--------|----------|--------|\n");
         for c in &s.checks {
             let ck = if c.passed { "✅" } else { "❌" };
-            out.push_str(&format!("| {} | {ck} | `{}` | `{}` |\n", c.name, c.expected, c.actual));
+            out.push_str(&format!(
+                "| {} | {ck} | `{}` | `{}` |\n",
+                c.name, c.expected, c.actual
+            ));
         }
         if let Some(err) = &s.error {
             out.push_str(&format!("\n**Error:** {err}\n"));
@@ -146,10 +164,15 @@ fn main() -> anyhow::Result<()> {
         all_reports.remove(0)
     } else {
         let total_dur: u64 = all_reports.iter().map(|r| r.duration_ms).sum();
-        let scenarios: Vec<ScenarioResult> = all_reports.into_iter().flat_map(|r| r.scenarios).collect();
+        let scenarios: Vec<ScenarioResult> =
+            all_reports.into_iter().flat_map(|r| r.scenarios).collect();
         let passed = scenarios.iter().filter(|s| s.passed).count();
         let total_checks: usize = scenarios.iter().map(|s| s.checks.len()).sum();
-        let passed_checks: usize = scenarios.iter().flat_map(|s| s.checks.iter()).filter(|c| c.passed).count();
+        let passed_checks: usize = scenarios
+            .iter()
+            .flat_map(|s| s.checks.iter())
+            .filter(|c| c.passed)
+            .count();
 
         TestReport {
             timestamp: chrono::Utc::now().to_rfc3339(),

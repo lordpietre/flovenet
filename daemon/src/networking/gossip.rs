@@ -22,8 +22,7 @@ pub fn create_gossipsub() -> gossipsub::Behaviour {
         .build()
         .expect("gossipsub config");
 
-    gossipsub::Behaviour::new(MessageAuthenticity::Anonymous, config)
-        .expect("gossipsub behaviour")
+    gossipsub::Behaviour::new(MessageAuthenticity::Anonymous, config).expect("gossipsub behaviour")
 }
 
 pub fn announce_topic() -> Topic {

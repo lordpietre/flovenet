@@ -39,9 +39,8 @@ impl LocalBackend {
     }
 
     async fn save_pins(&self, pins: &HashMap<String, PinnedItem>) -> Result<(), StorageError> {
-        let content = serde_json::to_string(pins).map_err(|e| {
-            StorageError::Backend(format!("failed to serialize pins: {e}"))
-        })?;
+        let content = serde_json::to_string(pins)
+            .map_err(|e| StorageError::Backend(format!("failed to serialize pins: {e}")))?;
         fs::write(&self.pins_path, content).await?;
         Ok(())
     }
@@ -151,7 +150,13 @@ mod tests {
 
         let data = b"pin test data";
         let cid = backend
-            .add(data, StorageOpts { pin: true, ttl: None })
+            .add(
+                data,
+                StorageOpts {
+                    pin: true,
+                    ttl: None,
+                },
+            )
             .await
             .unwrap();
 
@@ -180,7 +185,13 @@ mod tests {
 
         let data = b"delete me";
         let cid = backend
-            .add(data, StorageOpts { pin: true, ttl: None })
+            .add(
+                data,
+                StorageOpts {
+                    pin: true,
+                    ttl: None,
+                },
+            )
             .await
             .unwrap();
 

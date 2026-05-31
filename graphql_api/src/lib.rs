@@ -6,16 +6,18 @@ use std::sync::Arc;
 
 use async_graphql::{Request, Response, Schema};
 use axum::{
-    Router,
     extract::Extension,
     http::{Method, StatusCode},
     response::IntoResponse,
     routing::get,
+    Router,
 };
-use tokio::sync::{RwLock, broadcast};
+use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 
-use crate::schema::{AuthPayload, GatewayEvent, MutationRoot, Post, Profile, QueryRoot, SubscriptionRoot};
+use crate::schema::{
+    AuthPayload, GatewayEvent, MutationRoot, Post, Profile, QueryRoot, SubscriptionRoot,
+};
 use crypto::generate_keypair;
 use identity::PeerId;
 
@@ -70,11 +72,17 @@ impl InMemoryStore {
     pub async fn follow(&self, follower: &str, followee: &str) {
         {
             let mut follow = self.followers.write().await;
-            follow.entry(followee.to_string()).or_default().push(follower.to_string());
+            follow
+                .entry(followee.to_string())
+                .or_default()
+                .push(follower.to_string());
         }
         {
             let mut follow = self.following.write().await;
-            follow.entry(follower.to_string()).or_default().push(followee.to_string());
+            follow
+                .entry(follower.to_string())
+                .or_default()
+                .push(followee.to_string());
         }
     }
 
@@ -137,7 +145,11 @@ impl AppState {
                     post_count: 0,
                     reputation: None,
                 });
-            items.push(schema::FeedItem { post, author, score: None });
+            items.push(schema::FeedItem {
+                post,
+                author,
+                score: None,
+            });
         }
         items
     }
@@ -147,7 +159,9 @@ impl AppState {
         let q = query.to_lowercase();
         profiles
             .into_iter()
-            .filter(|p| p.display_name.to_lowercase().contains(&q) || p.peer_id.to_lowercase().contains(&q))
+            .filter(|p| {
+                p.display_name.to_lowercase().contains(&q) || p.peer_id.to_lowercase().contains(&q)
+            })
             .collect()
     }
 
@@ -344,11 +358,9 @@ pub async fn run_gateway(config: GatewayConfig, state: AppState) -> anyhow::Resu
 }
 
 async fn playground() -> impl IntoResponse {
-    axum::response::Html(
-        async_graphql::http::playground_source(
-            async_graphql::http::GraphQLPlaygroundConfig::new("/graphql"),
-        ),
-    )
+    axum::response::Html(async_graphql::http::playground_source(
+        async_graphql::http::GraphQLPlaygroundConfig::new("/graphql"),
+    ))
 }
 
 async fn graphql_handler(
@@ -370,7 +382,10 @@ async fn graphql_handler(
     } else {
         StatusCode::OK
     };
-    (status, axum::response::Json(serde_json::to_value(&resp).unwrap_or_default()))
+    (
+        status,
+        axum::response::Json(serde_json::to_value(&resp).unwrap_or_default()),
+    )
 }
 
 #[derive(Debug, Clone)]
@@ -465,7 +480,7 @@ mod tests {
         let cid1 = p1.cid.clone();
         store.save_post(&cid1, p1.clone()).await;
 
-        let mut p2 = make_post("b", "second");
+        let p2 = make_post("b", "second");
         let cid2 = p2.cid.clone();
         store.save_post(&cid2, p2.clone()).await;
 
@@ -525,8 +540,14 @@ mod tests {
     #[tokio::test]
     async fn test_appstate_search_profiles() {
         let state = make_state();
-        state.store.save_profile("peer1", make_profile("peer1", "Alice")).await;
-        state.store.save_profile("peer2", make_profile("peer2", "Bob")).await;
+        state
+            .store
+            .save_profile("peer1", make_profile("peer1", "Alice"))
+            .await;
+        state
+            .store
+            .save_profile("peer2", make_profile("peer2", "Bob"))
+            .await;
         let results = state.search_profiles("ali").await;
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].display_name, "Alice");
@@ -535,7 +556,10 @@ mod tests {
     #[tokio::test]
     async fn test_appstate_search_profiles_by_peer_id() {
         let state = make_state();
-        state.store.save_profile("abc-123", make_profile("abc-123", "X")).await;
+        state
+            .store
+            .save_profile("abc-123", make_profile("abc-123", "X"))
+            .await;
         let results = state.search_profiles("ABC").await;
         assert_eq!(results.len(), 1);
     }
@@ -543,8 +567,14 @@ mod tests {
     #[tokio::test]
     async fn test_appstate_search_posts() {
         let state = make_state();
-        state.store.save_post("p1", make_post("alice", "hello world")).await;
-        state.store.save_post("p2", make_post("bob", "goodbye")).await;
+        state
+            .store
+            .save_post("p1", make_post("alice", "hello world"))
+            .await;
+        state
+            .store
+            .save_post("p2", make_post("bob", "goodbye"))
+            .await;
         let results = state.search_posts("hello").await;
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].author, "alice");
@@ -562,18 +592,27 @@ mod tests {
     #[tokio::test]
     async fn test_appstate_get_feed() {
         let state = make_state();
-        state.store.save_profile("alice", make_profile("alice", "Alice")).await;
-        state.store.save_post("p1", Post {
-            cid: "p1".into(),
-            author: "alice".into(),
-            content: "post1".into(),
-            media: vec![],
-            parent: None,
-            reply_count: 0,
-            like_count: 0,
-            timestamp: chrono::Utc::now(),
-            signature: vec![],
-        }).await;
+        state
+            .store
+            .save_profile("alice", make_profile("alice", "Alice"))
+            .await;
+        state
+            .store
+            .save_post(
+                "p1",
+                Post {
+                    cid: "p1".into(),
+                    author: "alice".into(),
+                    content: "post1".into(),
+                    media: vec![],
+                    parent: None,
+                    reply_count: 0,
+                    like_count: 0,
+                    timestamp: chrono::Utc::now(),
+                    signature: vec![],
+                },
+            )
+            .await;
         let feed = state.get_feed(10, 0).await;
         assert_eq!(feed.len(), 1);
         assert_eq!(feed[0].post.content, "post1");
@@ -583,17 +622,23 @@ mod tests {
     #[tokio::test]
     async fn test_appstate_get_feed_fallback_profile() {
         let state = make_state();
-        state.store.save_post("p1", Post {
-            cid: "p1".into(),
-            author: "unknown".into(),
-            content: "orphan".into(),
-            media: vec![],
-            parent: None,
-            reply_count: 0,
-            like_count: 0,
-            timestamp: chrono::Utc::now(),
-            signature: vec![],
-        }).await;
+        state
+            .store
+            .save_post(
+                "p1",
+                Post {
+                    cid: "p1".into(),
+                    author: "unknown".into(),
+                    content: "orphan".into(),
+                    media: vec![],
+                    parent: None,
+                    reply_count: 0,
+                    like_count: 0,
+                    timestamp: chrono::Utc::now(),
+                    signature: vec![],
+                },
+            )
+            .await;
         let feed = state.get_feed(10, 0).await;
         assert_eq!(feed.len(), 1);
         assert_eq!(feed[0].author.peer_id, "unknown");
@@ -617,7 +662,10 @@ mod tests {
     #[tokio::test]
     async fn test_appstate_create_post() {
         let state = make_state();
-        let post = state.create_post("alice", "new post", vec![], None).await.unwrap();
+        let post = state
+            .create_post("alice", "new post", vec![], None)
+            .await
+            .unwrap();
         assert_eq!(post.author, "alice");
         assert_eq!(post.content, "new post");
         // verify stored
@@ -628,7 +676,10 @@ mod tests {
     #[tokio::test]
     async fn test_appstate_delete_post() {
         let state = make_state();
-        let post = state.create_post("alice", "delete", vec![], None).await.unwrap();
+        let post = state
+            .create_post("alice", "delete", vec![], None)
+            .await
+            .unwrap();
         assert!(state.delete_post(&post.cid).await.unwrap());
         assert!(!state.delete_post("nonexistent").await.unwrap());
     }
@@ -636,8 +687,14 @@ mod tests {
     #[tokio::test]
     async fn test_appstate_follow_unfollow() {
         let state = make_state();
-        state.store.save_profile("alice", make_profile("alice", "Alice")).await;
-        state.store.save_profile("bob", make_profile("bob", "Bob")).await;
+        state
+            .store
+            .save_profile("alice", make_profile("alice", "Alice"))
+            .await;
+        state
+            .store
+            .save_profile("bob", make_profile("bob", "Bob"))
+            .await;
 
         assert!(state.follow_user("alice", "bob").await.unwrap());
         let following = state.get_following("alice", 10).await;
@@ -653,7 +710,15 @@ mod tests {
         let state = make_state();
         let p = make_profile("alice", "Alice");
         state.store.save_profile("alice", p).await;
-        let updated = state.update_profile("alice", Some("Alice Updated".into()), Some("bio here".into()), None).await.unwrap();
+        let updated = state
+            .update_profile(
+                "alice",
+                Some("Alice Updated".into()),
+                Some("bio here".into()),
+                None,
+            )
+            .await
+            .unwrap();
         assert_eq!(updated.display_name, "Alice Updated");
         assert_eq!(updated.bio, Some("bio here".into()));
         assert_eq!(updated.avatar_cid, None);
@@ -665,7 +730,10 @@ mod tests {
     #[tokio::test]
     async fn test_appstate_update_profile_missing() {
         let state = make_state();
-        let err = state.update_profile("nobody", Some("X".into()), None, None).await.unwrap_err();
+        let err = state
+            .update_profile("nobody", Some("X".into()), None, None)
+            .await
+            .unwrap_err();
         assert_eq!(err.message, "profile not found");
     }
 
@@ -722,7 +790,9 @@ mod tests {
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(resp.into_body(), 1_000_000).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), 1_000_000)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert!(json["data"]["register"]["profile"]["displayName"].as_str() == Some("Alice"));
         assert!(json["data"]["register"]["token"].as_str().unwrap().len() > 10);
@@ -753,7 +823,9 @@ mod tests {
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(resp.into_body(), 1_000_000).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), 1_000_000)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["data"]["login"]["profile"]["displayName"], "Bob");
     }
@@ -783,9 +855,14 @@ mod tests {
             .unwrap();
         let resp = app.clone().oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(resp.into_body(), 1_000_000).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), 1_000_000)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert_eq!(json["data"]["createPost"]["content"], "Hello from HTTP test!");
+        assert_eq!(
+            json["data"]["createPost"]["content"],
+            "Hello from HTTP test!"
+        );
 
         // Query the feed
         let req = Request::builder()
@@ -798,9 +875,11 @@ mod tests {
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(resp.into_body(), 1_000_000).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), 1_000_000)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert!(json["data"]["feed"].as_array().unwrap().len() >= 1);
+        assert!(!json["data"]["feed"].as_array().unwrap().is_empty());
     }
 
     #[tokio::test]
@@ -828,7 +907,9 @@ mod tests {
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(resp.into_body(), 1_000_000).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), 1_000_000)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["data"]["searchProfiles"][0]["displayName"], "Dave");
     }
@@ -840,15 +921,15 @@ mod tests {
             .method(Method::POST)
             .uri("/graphql")
             .header("content-type", "application/json")
-            .body(Body::from(
-                r#"{"query":"invalid syntax"}"#,
-            ))
+            .body(Body::from(r#"{"query":"invalid syntax"}"#))
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
         // Invalid GraphQL syntax still returns 200 with error in body
-        let body = axum::body::to_bytes(resp.into_body(), 1_000_000).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), 1_000_000)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert!(json["errors"].as_array().unwrap().len() >= 1);
+        assert!(!json["errors"].as_array().unwrap().is_empty());
     }
 
     #[tokio::test]
@@ -874,14 +955,17 @@ mod tests {
             ))
             .unwrap();
         let resp = app.clone().oneshot(req).await.unwrap();
-        let body = axum::body::to_bytes(resp.into_body(), 1_000_000).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), 1_000_000)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        let frank_peer_id = json["data"]["register"]["profile"]["peerId"].as_str().unwrap().to_string();
+        let frank_peer_id = json["data"]["register"]["profile"]["peerId"]
+            .as_str()
+            .unwrap()
+            .to_string();
 
         // Follow Frank
-        let query = format!(
-            r#"{{"query":"mutation {{ follow(peerId: \"{frank_peer_id}\") }}"}}"#,
-        );
+        let query = format!(r#"{{"query":"mutation {{ follow(peerId: \"{frank_peer_id}\") }}"}}"#,);
         let req = Request::builder()
             .method(Method::POST)
             .uri("/graphql")

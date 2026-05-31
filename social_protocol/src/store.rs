@@ -19,7 +19,13 @@ impl SocialStore {
     pub async fn store(&self, bytes: &[u8]) -> Result<String, storage::error::StorageError> {
         let cid = self
             .backend
-            .add(bytes, StorageOpts { pin: true, ttl: None })
+            .add(
+                bytes,
+                StorageOpts {
+                    pin: true,
+                    ttl: None,
+                },
+            )
             .await?;
         Ok(cid.to_string())
     }
@@ -44,11 +50,23 @@ impl SocialStore {
             .map_err(|e| storage::error::StorageError::Backend(e.to_string()))?;
         let cid = self
             .backend
-            .add(&bytes, StorageOpts { pin: true, ttl: None })
+            .add(
+                &bytes,
+                StorageOpts {
+                    pin: true,
+                    ttl: None,
+                },
+            )
             .await?;
         let idx_key = format!("profile:{}", profile.peer_id);
         self.backend
-            .add(idx_key.as_bytes(), StorageOpts { pin: true, ttl: None })
+            .add(
+                idx_key.as_bytes(),
+                StorageOpts {
+                    pin: true,
+                    ttl: None,
+                },
+            )
             .await?;
         tracing::info!(peer_id = %profile.peer_id, cid = %cid, "profile stored");
         Ok(())
@@ -78,20 +96,29 @@ impl SocialStore {
             .map_err(|e| storage::error::StorageError::Backend(e.to_string()))?;
         let cid = self
             .backend
-            .add(&bytes, StorageOpts { pin: true, ttl: None })
+            .add(
+                &bytes,
+                StorageOpts {
+                    pin: true,
+                    ttl: None,
+                },
+            )
             .await?;
         let idx_key = format!("post:{}", post.cid);
         self.backend
-            .add(idx_key.as_bytes(), StorageOpts { pin: true, ttl: None })
+            .add(
+                idx_key.as_bytes(),
+                StorageOpts {
+                    pin: true,
+                    ttl: None,
+                },
+            )
             .await?;
         tracing::info!(cid = %cid, "post stored");
         Ok(())
     }
 
-    pub async fn get_post(
-        &self,
-        cid: &str,
-    ) -> Result<Option<Post>, storage::error::StorageError> {
+    pub async fn get_post(&self, cid: &str) -> Result<Option<Post>, storage::error::StorageError> {
         let pins = self.backend.ls_pins().await?;
         for pin in &pins {
             if let Ok(data) = self.backend.get(&pin.cid).await {

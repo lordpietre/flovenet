@@ -28,7 +28,6 @@ pub fn load_swarm_key(path: Option<&str>) -> Option<[u8; 32]> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
 
     #[test]
     fn test_load_swarm_key_none() {
@@ -44,7 +43,7 @@ mod tests {
     fn test_load_swarm_key_too_short() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("short.key");
-        std::fs::write(&path, &[0u8; 16]).unwrap();
+        std::fs::write(&path, [0u8; 16]).unwrap();
         assert_eq!(load_swarm_key(Some(path.to_str().unwrap())), None);
     }
 
@@ -53,12 +52,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("exact.key");
         let key_bytes: [u8; 32] = [
-            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-            0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
-            0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
-            0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
+            0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c,
+            0x1d, 0x1e, 0x1f, 0x20,
         ];
-        std::fs::write(&path, &key_bytes).unwrap();
+        std::fs::write(&path, key_bytes).unwrap();
         let loaded = load_swarm_key(Some(path.to_str().unwrap())).unwrap();
         assert_eq!(loaded, key_bytes);
     }
@@ -67,7 +65,7 @@ mod tests {
     fn test_load_swarm_key_truncates_extra() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("long.key");
-        let mut data = vec![0xabu8; 64];
+        let data = vec![0xabu8; 64];
         std::fs::write(&path, &data).unwrap();
         let loaded = load_swarm_key(Some(path.to_str().unwrap())).unwrap();
         assert_eq!(loaded.len(), 32);
@@ -103,11 +101,12 @@ mod tests {
     fn build_test_swarm() -> Swarm<gossipsub::Behaviour> {
         let key = identity::Keypair::generate_ed25519();
 
-        let transport = libp2p::tcp::tokio::Transport::new(libp2p::tcp::Config::new().nodelay(true))
-            .upgrade(libp2p::core::upgrade::Version::V1Lazy)
-            .authenticate(libp2p::noise::Config::new(&key).unwrap())
-            .multiplex(libp2p::yamux::Config::default())
-            .boxed();
+        let transport =
+            libp2p::tcp::tokio::Transport::new(libp2p::tcp::Config::new().nodelay(true))
+                .upgrade(libp2p::core::upgrade::Version::V1Lazy)
+                .authenticate(libp2p::noise::Config::new(&key).unwrap())
+                .multiplex(libp2p::yamux::Config::default())
+                .boxed();
 
         let msg_id_fn = |msg: &gossipsub::Message| {
             let data = &msg.data[..msg.data.len().min(64)];
@@ -123,8 +122,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let behaviour =
-            gossipsub::Behaviour::new(MessageAuthenticity::Anonymous, config).unwrap();
+        let behaviour = gossipsub::Behaviour::new(MessageAuthenticity::Anonymous, config).unwrap();
 
         let mut swarm = Swarm::new(
             transport,
@@ -143,7 +141,7 @@ mod tests {
     async fn test_p2p_gossip_message_exchange() {
         let mut swarm_a = build_test_swarm();
         let (mut swarm_b, peer_b) = {
-            let mut b = build_test_swarm();
+            let b = build_test_swarm();
             let pid = *b.local_peer_id();
             (b, pid)
         };
@@ -164,7 +162,9 @@ mod tests {
                 }
                 _ = tokio::time::sleep(Duration::from_millis(50)) => break,
             }
-            if addr_b.is_some() { break; }
+            if addr_b.is_some() {
+                break;
+            }
         }
         let addr_b = addr_b.expect("swarm B got no listen addr");
 
@@ -217,9 +217,14 @@ mod tests {
                 }
                 _ = tokio::time::sleep(Duration::from_millis(10)) => {}
             }
-            if received.load(Ordering::SeqCst) { break; }
+            if received.load(Ordering::SeqCst) {
+                break;
+            }
         }
 
-        assert!(received.load(Ordering::SeqCst), "swarm B should receive message from swarm A");
+        assert!(
+            received.load(Ordering::SeqCst),
+            "swarm B should receive message from swarm A"
+        );
     }
 }

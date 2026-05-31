@@ -1,9 +1,9 @@
 pub mod error;
 
 use argon2::Argon2;
-use chacha20poly1305::{ChaCha20Poly1305, KeyInit, Nonce, aead::AeadInPlace};
+use chacha20poly1305::{aead::AeadInPlace, ChaCha20Poly1305, KeyInit, Nonce};
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
-use rand::{Rng, rngs::OsRng};
+use rand::{rngs::OsRng, Rng};
 use serde::{Deserialize, Serialize};
 
 pub use ed25519_dalek::{Signature, SECRET_KEY_LENGTH as ED25519_SEED_LEN};
@@ -67,12 +67,16 @@ impl SignedEnvelope {
 
     pub fn verify(&self) -> Result<()> {
         let pub_key = VerifyingKey::from_bytes(
-            self.signer_public_key.as_slice().try_into()
+            self.signer_public_key
+                .as_slice()
+                .try_into()
                 .map_err(|_| CryptoError::InvalidKey)?,
         )
         .map_err(|_| CryptoError::InvalidKey)?;
         let sig = Signature::from_bytes(
-            self.signature.as_slice().try_into()
+            self.signature
+                .as_slice()
+                .try_into()
                 .map_err(|_| CryptoError::SignatureVerification)?,
         );
         pub_key
@@ -82,7 +86,9 @@ impl SignedEnvelope {
 
     pub fn verify_with_key(&self, public_key: &VerifyingKey) -> Result<()> {
         let sig = Signature::from_bytes(
-            self.signature.as_slice().try_into()
+            self.signature
+                .as_slice()
+                .try_into()
                 .map_err(|_| CryptoError::SignatureVerification)?,
         );
         public_key
