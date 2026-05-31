@@ -58,11 +58,11 @@ Convertir Flovenet de una red Docker-centric a una **aplicación instalable** qu
 - [x] Compilar el daemon: `cargo build --release --bin daemon`
 - [x] Verificar estado: `./target/release/daemon status`
 - [x] CLI funciona con subcomandos: daemon, api-gateway, share, run, status
-- [ ] Probar daemon completo: `./target/release/daemon daemon --api-port 9090`
-- [ ] Probar gateway: `./target/release/daemon api-gateway --port 8080`
-- [ ] Probar web dashboard contra gateway local
-- [ ] Buildear .deb: `./scripts/build-deb.sh`
-- [ ] Instalar .deb localmente y verificar systemd services
+- [x] Probar daemon completo: `./target/release/daemon daemon --api-port 9090` ✅ (libp2p + metrics server)
+- [x] Probar gateway: `./target/release/daemon api-gateway --port 8080` ✅ (GraphQL responde)
+- [ ] Probar web dashboard contra gateway local (requiere Node.js 20+)
+- [x] Buildear .deb: `./scripts/build-deb.sh` ✅ (fix: version lookup + mkdir structure)
+- [x] Instalar .deb localmente y verificar systemd services ✅ (ambos servicios active/running)
 
 ### Hito B: Próximo Release (Julio 2026)
 - [ ] **Windows**: Service wrapper (`windows-service` crate), system tray icon, MSI installer (WiX)

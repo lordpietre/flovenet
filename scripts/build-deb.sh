@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-VERSION="${1:-$(cd "$PROJECT_DIR" && grep '^version =' Cargo.toml | head -1 | cut -d'"' -f2)}"
+VERSION="${1:-$(cd "$PROJECT_DIR" && grep '^version =' daemon/Cargo.toml | head -1 | cut -d'"' -f2)}"
 DEB_DIR="$PROJECT_DIR/deb-pkg"
 BUILD_DIR="$PROJECT_DIR/target/deb"
 
@@ -26,6 +26,9 @@ mkdir -p "$PKG_DIR"
 # Step 3: Copy control files
 cp -r "$DEB_DIR/DEBIAN" "$PKG_DIR/"
 cp -r "$DEB_DIR/lib" "$PKG_DIR/"
+mkdir -p "$PKG_DIR/usr/bin"
+mkdir -p "$PKG_DIR/usr/share/doc/flovenet"
+mkdir -p "$PKG_DIR/usr/share/man/man1"
 
 # Step 4: Copy binary
 cp "$PROJECT_DIR/target/release/daemon" "$PKG_DIR/usr/bin/flovenet"
